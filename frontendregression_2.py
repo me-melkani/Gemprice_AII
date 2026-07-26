@@ -56,7 +56,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ===========================
-# LOAD DATA & PREPROCESS (Notebook Logic)
+# LOAD DATA & PREPROCESS
 # ===========================
 @st.cache_data
 def load_data():
@@ -65,13 +65,13 @@ def load_data():
     if "Unnamed: 0" in df.columns:
         df.drop("Unnamed: 0", axis=1, inplace=True)
     
-    # Handling missing values in depth (filling with mean like notebook)
+    # Handling missing values in depth
     if "depth" in df.columns:
         df["depth"] = df["depth"].fillna(df["depth"].mean())
         
     df.dropna(inplace=True)
     
-    # Mapping categorical columns according to your notebook
+    # Categorical Mappings
     df["cut"] = df["cut"].map({
         "Fair": 0, "Good": 1, "Very Good": 2, "Premium": 3, "Ideal": 4
     })
@@ -89,7 +89,7 @@ def load_data():
     return df, X, y
 
 # ===========================
-# TRAIN DEEP LEARNING MODEL (ANN)
+# TRAIN DEEP LEARNING MODEL (ANN) - High Accuracy Setup
 # ===========================
 @st.cache_resource
 def train_dl_model():
@@ -99,20 +99,21 @@ def train_dl_model():
         X, y, test_size=0.20, random_state=42
     )
     
-    # Feature Scaling (Crucial for Neural Networks)
+    # Feature Scaling
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Deep Learning Model (Multi-Layer Perceptron / ANN)
-    epochs = 200
+    # Deep Learning Model (Multi-Layer Perceptron / ANN) with high capacity
     model = MLPRegressor(
-        hidden_layer_sizes=(64, 32),
+        hidden_layer_sizes=(128, 64, 32),
         activation='relu',
         solver='adam',
-        max_iter=epochs,
+        learning_rate_init=0.001,
+        max_iter=800,
         random_state=42,
-        early_stopping=True
+        early_stopping=True,
+        validation_fraction=0.1
     )
     
     model.fit(X_train_scaled, y_train)
@@ -136,7 +137,7 @@ st.markdown('<div class="main-title">💎 Deep Learning Diamond Price Predictor<
 st.markdown('<div class="subtitle">Powered by Artificial Neural Networks (ANN) & Deep Regression</div>', unsafe_allow_html=True)
 
 # ===========================
-# KEY METRICS (Showing MAE & Epochs)
+# KEY METRICS
 # ===========================
 col1, col2, col3, col4 = st.columns(4, gap="medium")
 
@@ -233,7 +234,7 @@ with tab3:
     st.subheader("Deep Learning Model Performance & Loss Insights")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Model Architecture", "ANN (64-32 Neurons)")
+        st.metric("Model Architecture", "ANN (128-64-32 Neurons)")
     with col2:
         st.metric("Mean Absolute Error (MAE)", f"${mae:,.2f}")
     with col3:
