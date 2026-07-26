@@ -104,16 +104,14 @@ def train_dl_model():
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Deep Learning Model (Multi-Layer Perceptron / ANN) with high capacity
+    # Updated MLP Regressor (No early stopping, full training)
     model = MLPRegressor(
         hidden_layer_sizes=(128, 64, 32),
         activation='relu',
         solver='adam',
-        learning_rate_init=0.001,
-        max_iter=800,
-        random_state=42,
-        early_stopping=True,
-        validation_fraction=0.1
+        learning_rate_init=0.01,   # Thoda fast learning ke liye
+        max_iter=400,              # Poore 400 epochs chalenge
+        random_state=42
     )
     
     model.fit(X_train_scaled, y_train)
