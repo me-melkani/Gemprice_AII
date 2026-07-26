@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_absolute_error
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -33,14 +33,12 @@ st.markdown("""
         text-align: center;
         margin-bottom: 10px;
     }
-    
     .subtitle {
         text-align: center;
         color: #666;
         font-size: 1.1em;
         margin-bottom: 30px;
     }
-    
     .prediction-result {
         background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
         padding: 30px;
@@ -50,7 +48,6 @@ st.markdown("""
         font-size: 2.5em;
         font-weight: bold;
     }
-    
     .section-divider {
         margin: 40px 0;
         border-top: 2px solid #e0e0e0;
@@ -59,7 +56,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ===========================
-# LOAD DATA & PREPROCESS
+# LOAD DATA & PREPROCESS (Notebook Logic)
 # ===========================
 @st.cache_data
 def load_data():
@@ -68,8 +65,13 @@ def load_data():
     if "Unnamed: 0" in df.columns:
         df.drop("Unnamed: 0", axis=1, inplace=True)
     
+    # Handling missing values in depth (filling with mean like notebook)
+    if "depth" in df.columns:
+        df["depth"] = df["depth"].fillna(df["depth"].mean())
+        
     df.dropna(inplace=True)
     
+    # Mapping categorical columns according to your notebook
     df["cut"] = df["cut"].map({
         "Fair": 0, "Good": 1, "Very Good": 2, "Premium": 3, "Ideal": 4
     })
@@ -97,30 +99,35 @@ def train_dl_model():
         X, y, test_size=0.20, random_state=42
     )
     
-    # Feature Scaling (Important for Deep Learning / Neural Networks)
+    # Feature Scaling (Crucial for Neural Networks)
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Building Deep Learning Model (Multi-Layer Perceptron Neural Network)
-    # Architecture: Input -> Hidden Layer 1 (64 neurons) -> Hidden Layer 2 (32 neurons) -> Output
+    # Deep Learning Model (Multi-Layer Perceptron / ANN)
+    epochs = 200
     model = MLPRegressor(
         hidden_layer_sizes=(64, 32),
         activation='relu',
         solver='adam',
-        max_iter=500,
-        random_state=42
+        max_iter=epochs,
+        random_state=42,
+        early_stopping=True
     )
     
     model.fit(X_train_scaled, y_train)
     prediction = model.predict(X_test_scaled)
-    score = r2_score(y_test, prediction)
     
-    return model, scaler, score
+    # Metrics Calculation
+    score = r2_score(y_test, prediction)
+    mae = mean_absolute_error(y_test, prediction)
+    actual_epochs = model.n_iter_
+    
+    return model, scaler, score, mae, actual_epochs
 
 # Load data and model
 df, X, y = load_data()
-model, scaler, score = train_dl_model()
+model, scaler, score, mae, actual_epochs = train_dl_model()
 
 # ===========================
 # HEADER SECTION
@@ -129,15 +136,15 @@ st.markdown('<div class="main-title">💎 Deep Learning Diamond Price Predictor<
 st.markdown('<div class="subtitle">Powered by Artificial Neural Networks (ANN) & Deep Regression</div>', unsafe_allow_html=True)
 
 # ===========================
-# KEY METRICS
+# KEY METRICS (Showing MAE & Epochs)
 # ===========================
 col1, col2, col3, col4 = st.columns(4, gap="medium")
 
 metrics = [
     (col1, "📊 Dataset", f"{len(df):,}", "Records"),
-    (col2, "🧠 Architecture", "64-32 Neurons", "Dense Layers"),
-    (col3, "✅ ANN R² Score", f"{score:.3f}", "Accuracy"),
-    (col4, "💰 Avg Price", f"${df['price'].mean():,.0f}", "USD")
+    (col2, "🔄 Total Epochs", f"{actual_epochs}", "Iterations"),
+    (col3, "📉 Mean Absolute Error", f"${mae:,.2f}", "MAE Score"),
+    (col4, "✅ ANN R² Score", f"{score:.3f}", "Accuracy")
 ]
 
 for col, icon, value, label in metrics:
@@ -204,13 +211,12 @@ with tab1:
     predict_button = st.button("🔮 PREDICT WITH DEEP LEARNING", use_container_width=True, type="primary")
     
     if predict_button:
-        # Scale input data before passing to Neural Network
         input_scaled = scaler.transform(input_data)
         prediction = model.predict(input_scaled)[0]
         
         st.balloons()
         st.markdown(f'<div class="prediction-result">${prediction:,.2f}</div>', unsafe_allow_html=True)
-        st.success(f"✅ Deep Neural Network prediction completed successfully! (Model Accuracy: {score:.1%})")
+        st.success(f"✅ Deep Neural Network prediction completed successfully! (Model MAE: ${mae:,.2f})")
 
 # ========================
 # TAB 2: DATA ANALYSIS
@@ -224,23 +230,21 @@ with tab2:
 # TAB 3: MODEL INSIGHTS
 # ========================
 with tab3:
-    st.subheader("Deep Learning Model Architecture & Loss Insights")
+    st.subheader("Deep Learning Model Performance & Loss Insights")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Neural Network Type", "Multi-Layer Perceptron")
+        st.metric("Model Architecture", "ANN (64-32 Neurons)")
     with col2:
-        st.metric("Activation Function", "ReLU")
+        st.metric("Mean Absolute Error (MAE)", f"${mae:,.2f}")
     with col3:
-        st.metric("Optimizer", "Adam Optimizer")
+        st.metric("Epochs Completed", f"{actual_epochs}")
     
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
-    st.write("#### 📉 Training Loss Curve Trend")
-    st.write("The network successfully minimized loss across iterations using backpropagation.")
+    st.write("#### 📉 Training Loss Reduction over Epochs")
     
-    # Plotting training loss curve if available in model
     if hasattr(model, "loss_curve_"):
-        loss_df = pd.DataFrame({"Iteration": range(len(model.loss_curve_)), "Loss": model.loss_curve_})
-        fig_loss = px.line(loss_df, x="Iteration", y="Loss", title="ANN Training Loss Reduction over Iterations")
+        loss_df = pd.DataFrame({"Epoch": range(1, len(model.loss_curve_) + 1), "Loss": model.loss_curve_})
+        fig_loss = px.line(loss_df, x="Epoch", y="Loss", title="ANN Training Loss Reduction over Epochs")
         st.plotly_chart(fig_loss, use_container_width=True)
 
 # ========================
